@@ -7,7 +7,7 @@ TLS api is very similar to crypto/tls on standard library.
 TLS client example:
 
 	addr := "127.0.0.1:9443"
-	c, err := gnutls.Dial("tcp", addr, &gnutls.Config{ServerName: "localhost"})
+	c, err := gnutls.Dial("tcp", addr, &gnutls.Config{ServerName: "localhost",InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatal("gnutls dial ", err)
 	}
@@ -92,7 +92,7 @@ AES encrypt/decrypt example:
 
 Hash example:
 
-	h := gnutls.NewHash(gnutls.GNUTLS_SHA512)
+	h := gnutls.NewHash(gnutls.GNUTLS_HASH_SHA512)
 	defer h.Close()
 
 	data := []byte("1234")
