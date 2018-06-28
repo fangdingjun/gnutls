@@ -6,15 +6,16 @@ gnutls_datum_t out;
 int status;
 int type;
 
+int _init_session(struct session *);
+
 struct session *init_client_session()
 {
 	struct session *sess = malloc(sizeof(struct session));
 	memset(sess, sizeof(struct session), 0);
+
 	gnutls_init(&sess->session, GNUTLS_CLIENT);
-	gnutls_certificate_allocate_credentials(&sess->xcred);
-	gnutls_certificate_set_x509_system_trust(sess->xcred);
-	gnutls_set_default_priority(sess->session);
-	gnutls_credentials_set(sess->session, GNUTLS_CRD_CERTIFICATE, sess->xcred);
+	_init_session(sess);
+
 	return sess;
 }
 
@@ -22,19 +23,23 @@ struct session *init_server_session()
 {
 	struct session *sess = malloc(sizeof(struct session));
 	memset(sess, sizeof(struct session), 0);
+
 	gnutls_init(&sess->session, GNUTLS_SERVER);
+	_init_session(sess);
+
+	gnutls_certificate_server_set_request(sess->session, GNUTLS_CERT_IGNORE);
+
+	return sess;
+}
+
+int _init_session(struct session *sess)
+{
 	gnutls_certificate_allocate_credentials(&sess->xcred);
 	gnutls_certificate_set_x509_system_trust(sess->xcred);
 	gnutls_set_default_priority(sess->session);
 	gnutls_credentials_set(sess->session, GNUTLS_CRD_CERTIFICATE, sess->xcred);
-	gnutls_certificate_server_set_request(sess->session, GNUTLS_CERT_IGNORE);
-	return sess;
-}
 
-int set_keyfile(struct session *sess, char *crtfile, char *keyfile)
-{
-	return gnutls_certificate_set_x509_key_file(
-		sess->xcred, crtfile, keyfile, GNUTLS_X509_FMT_PEM);
+	return 0;
 }
 
 void session_destroy(struct session *sess)
@@ -63,12 +68,6 @@ ssize_t push_function(gnutls_transport_ptr_t ptr, const void *data, size_t len)
 void set_data(struct session *sess, size_t data)
 {
 	sess->data = (void *)((int *)data);
-}
-
-void set_servername(struct session *sess, char *servername, int namelen)
-{
-	gnutls_server_name_set(sess->session, GNUTLS_NAME_DNS, servername, namelen);
-	gnutls_session_set_verify_cert(sess->session, NULL, 0);
 }
 
 int handshake(struct session *sess)
@@ -102,18 +101,6 @@ int handshake(struct session *sess)
 		printf("- Session info: %s\n", desc);
 		gnutls_free(desc);
 	}*/
-	return ret;
-}
-
-int read_application_data(struct session *sess, char *data, int buflen)
-{
-	int ret = gnutls_record_recv(sess->session, data, buflen);
-	return ret;
-}
-
-int write_application_data(struct session *sess, char *data, int datalen)
-{
-	int ret = gnutls_record_send(sess->session, data, datalen);
 	return ret;
 }
 
@@ -152,24 +139,9 @@ gnutls_cipher_hd_t new_cipher(int cipher_type, char *key, int keylen, char *iv, 
 	return handle;
 }
 
-int cipher_get_block_size(int t)
-{
-	return gnutls_cipher_get_block_size(t);
-}
-
-int cipher_get_iv_size(int t)
-{
-	return gnutls_cipher_get_iv_size(t);
-}
-
 gnutls_hash_hd_t new_hash(int t)
 {
 	gnutls_hash_hd_t hash;
 	gnutls_hash_init(&hash, t);
 	return hash;
-}
-
-int get_hash_len(int t)
-{
-	return gnutls_hash_get_len(t);
 }
