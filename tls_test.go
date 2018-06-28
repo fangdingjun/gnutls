@@ -45,7 +45,7 @@ func TestTLSClient(t *testing.T) {
 		}
 	}()
 
-	c, err := Dial("tcp", addr, &Config{})
+	c, err := Dial("tcp", addr, &Config{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatal("gnutls dial ", err)
 	}
