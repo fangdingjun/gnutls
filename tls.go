@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	GNUTLS_NAME_DNS     = 1
-	GNUTLS_X509_FMT_PEM = 1
+	GNUTLS_NAME_DNS               = 1
+	GNUTLS_X509_FMT_PEM           = 1
+	GNUTLS_ALPN_MANDATORY         = 1
+	GNUTLS_ALPN_SERVER_PRECEDENCE = 1 << 1
 )
 
 // Conn tls connection for client
@@ -25,6 +27,7 @@ type Conn struct {
 	sess      *C.struct_session
 	handshake bool
 	cservname *C.char
+	state     *ConnectionState
 }
 
 // Config tls configure
@@ -33,7 +36,22 @@ type Config struct {
 	CrtFile            string
 	KeyFile            string
 	InsecureSkipVerify bool
+	NextProtos         []string
 }
+
+// ConnectionState connection state
+type ConnectionState struct {
+	// SNI name client send
+	ServerName string
+	// selected ALPN protocl
+	NegotiatedProtocol string
+	HandshakeComplete  bool
+	// TLS version number, ex: 0x303
+	Version uint16
+	// TLS version number, ex: TLS1.0
+	VersionName string
+}
+
 type listener struct {
 	l net.Listener
 	c *Config
@@ -106,6 +124,11 @@ func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
 		cerrstr := C.gnutls_strerror(ret)
 		return nil, fmt.Errorf("set keyfile failed: %s", C.GoString(cerrstr))
 	}
+	if cfg.NextProtos != nil {
+		if err := setAlpnProtocols(sess, cfg); err != nil {
+			log.Println(err)
+		}
+	}
 	return conn, nil
 }
 
@@ -145,10 +168,33 @@ func NewClientConn(c net.Conn, cfg *Config) (*Conn, error) {
 				C.gnutls_session_set_verify_cert(sess.session, nil, 0)
 			}
 		}
+
+		if cfg.NextProtos != nil {
+			if err := setAlpnProtocols(sess, cfg); err != nil {
+				log.Println(err)
+			}
+		}
+
 	} else {
 		C.gnutls_session_set_verify_cert(sess.session, nil, 0)
 	}
 	return conn, nil
+}
+
+func setAlpnProtocols(sess *C.struct_session, cfg *Config) error {
+	arg := make([](*C.char), 0)
+	for _, s := range cfg.NextProtos {
+		cbuf := C.CString(s)
+		defer C.free(unsafe.Pointer(cbuf))
+		arg = append(arg, (*C.char)(cbuf))
+	}
+	ret := C.alpn_set_protocols(sess,
+		(**C.char)(unsafe.Pointer(&arg[0])), C.int(len(cfg.NextProtos)))
+	if int(ret) < 0 {
+		return fmt.Errorf("set alpn failed: %s", C.GoString(C.gnutls_strerror(ret)))
+	}
+	return nil
+
 }
 
 // Handshake handshake tls
@@ -255,6 +301,56 @@ func (c *Conn) LocalAddr() net.Addr {
 // SetDeadline implements net.Conn
 func (c *Conn) SetDeadline(t time.Time) error {
 	return c.c.SetDeadline(t)
+}
+
+// ConnectionState report connection state
+func (c *Conn) ConnectionState() *ConnectionState {
+	if c.state != nil {
+		return c.state
+	}
+	version :=
+		uint16(C.gnutls_protocol_get_version(c.sess.session))
+
+	versionname := C.GoString(
+		C.gnutls_protocol_get_name(C.gnutls_protocol_t(version)))
+
+	state := &ConnectionState{
+		NegotiatedProtocol: c.getAlpnSelectedProtocol(),
+		Version:            version,
+		HandshakeComplete:  c.handshake,
+		ServerName:         c.getServerName(),
+		VersionName:        versionname,
+	}
+	c.state = state
+	return state
+}
+
+func (c *Conn) getAlpnSelectedProtocol() string {
+	cbuf := C.malloc(100)
+	defer C.free(cbuf)
+
+	ret := C.alpn_get_selected_protocol(c.sess, (*C.char)(cbuf))
+	if int(ret) < 0 {
+		return ""
+	}
+	alpnname := C.GoString((*C.char)(cbuf))
+	return alpnname
+}
+
+func (c *Conn) getServerName() string {
+	buflen := 100
+	nametype := GNUTLS_NAME_DNS
+	cbuf := C.malloc(C.size_t(buflen))
+	defer C.free(cbuf)
+
+	ret := C.gnutls_server_name_get(c.sess.session, cbuf,
+		(*C.size_t)(unsafe.Pointer(&buflen)),
+		(*C.uint)(unsafe.Pointer(&nametype)), 0)
+	if int(ret) < 0 {
+		return ""
+	}
+	name := C.GoString((*C.char)(cbuf))
+	return name
 }
 
 // DataRead c callback function for data read

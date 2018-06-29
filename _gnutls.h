@@ -35,4 +35,6 @@ gnutls_cipher_hd_t new_cipher(int cipher_type, char *key, int keylen, char *iv, 
 
 gnutls_hash_hd_t new_hash(int t);
 
+int alpn_set_protocols(struct session *sess, char **, int);
+int alpn_get_selected_protocol(struct session *sess, char *buf);
 #endif

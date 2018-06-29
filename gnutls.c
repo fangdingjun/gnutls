@@ -145,3 +145,40 @@ gnutls_hash_hd_t new_hash(int t)
 	gnutls_hash_init(&hash, t);
 	return hash;
 }
+
+int alpn_set_protocols(struct session *sess, char **names, int namelen)
+{
+	gnutls_datum_t *t;
+	int ret;
+	int i;
+
+	t = (gnutls_datum_t *)malloc(namelen * sizeof(gnutls_datum_t));
+	for (i = 0; i < namelen; i++)
+	{
+		t[i].data = names[i];
+		t[i].size = strlen(names[i]);
+	}
+
+	ret = gnutls_alpn_set_protocols(sess->session, t,
+									namelen,
+									GNUTLS_ALPN_SERVER_PRECEDENCE);
+	free(t);
+	return ret;
+}
+
+int alpn_get_selected_protocol(struct session *sess, char *buf)
+{
+	gnutls_datum_t p;
+	int ret;
+	memset(&p, 0, sizeof(gnutls_datum_t));
+	ret = gnutls_alpn_get_selected_protocol(sess->session, &p);
+	if (ret < 0)
+	{
+		return ret;
+	}
+	strcpy(buf, p.data);
+
+	// note: p.data is constant value, only valid during the session life
+
+	return 0;
+}
