@@ -7,6 +7,10 @@ int status;
 int type;
 
 int _init_session(struct session *);
+int cert_select_callback(gnutls_session_t sess, const gnutls_datum_t *req_ca_dn,
+						 int nreqs, const gnutls_pk_algorithm_t *pk_algos,
+						 int pk_algos_length, gnutls_pcert_st **pcert,
+						 unsigned int *pcert_length, gnutls_privkey_t *pkey);
 
 struct session *init_client_session()
 {
@@ -36,33 +40,69 @@ int _init_session(struct session *sess)
 {
 	gnutls_certificate_allocate_credentials(&sess->xcred);
 	gnutls_certificate_set_x509_system_trust(sess->xcred);
+	gnutls_certificate_set_retrieve_function2(sess->xcred, cert_select_callback);
 	gnutls_set_default_priority(sess->session);
 	gnutls_credentials_set(sess->session, GNUTLS_CRD_CERTIFICATE, sess->xcred);
-
 	return 0;
 }
 
 void session_destroy(struct session *sess)
 {
-	gnutls_bye(sess->session, GNUTLS_SHUT_WR);
+	gnutls_bye(sess->session, GNUTLS_SHUT_RDWR);
 	gnutls_deinit(sess->session);
 	gnutls_certificate_free_credentials(sess->xcred);
 	free(sess);
 }
 
+int cert_select_callback(gnutls_session_t sess, const gnutls_datum_t *req_ca_dn,
+						 int nreqs, const gnutls_pk_algorithm_t *pk_algos,
+						 int pk_algos_length, gnutls_pcert_st **pcert,
+						 unsigned int *pcert_length, gnutls_privkey_t *pkey)
+{
+	char hostname[100];
+	int namelen = 100;
+	int type = GNUTLS_NAME_DNS;
+	int ret;
+	void *ptr;
+
+	//printf("cert_select callback\n");
+	if (sess == NULL)
+	{
+		//printf("session is NULL\n");
+		return -1;
+	}
+	ptr = gnutls_session_get_ptr(sess);
+	if (ptr == NULL)
+	{
+		//printf("ptr is NULL\n");
+		return -1;
+	}
+	ret = gnutls_server_name_get(sess, hostname, (size_t *)(&namelen), &type, 0);
+	if (ret < 0)
+	{
+		//printf("get server name error: %s\n", gnutls_strerror(ret));
+		namelen = 0;
+		//return -1;
+	}
+	//printf("call go callback\n");
+	ret = OnCertSelectCallback(ptr, hostname, namelen, pcert_length, pcert, pkey);
+	//printf("after callback pcert_length %d, pcert 0x%x, pkey 0x%x\n", *pcert_length, pcert, pkey);
+	return ret;
+}
+
 ssize_t pull_function(gnutls_transport_ptr_t ptr, void *data, size_t len)
 {
-	return DataRead(ptr, data, len);
+	return OnOnDataReadCallbackCallback(ptr, data, len);
 }
 
 int pull_timeout_function(gnutls_transport_ptr_t ptr, unsigned int ms)
 {
-	return DataTimeoutPull(ptr, ms);
+	return OnDataTimeoutRead(ptr, ms);
 }
 
 ssize_t push_function(gnutls_transport_ptr_t ptr, const void *data, size_t len)
 {
-	return DataWrite(ptr, (char *)data, len);
+	return OnDataWriteCallback(ptr, (char *)data, len);
 }
 
 void set_data(struct session *sess, size_t data)
@@ -72,15 +112,12 @@ void set_data(struct session *sess, size_t data)
 
 int handshake(struct session *sess)
 {
-	if (sess->handshake > 0)
-	{
-		return 0;
-	}
 
 	int ret;
 	do
 	{
 		ret = gnutls_handshake(sess->session);
+		//printf("handshake ret %d\n", ret);
 	} while (ret < 0 && gnutls_error_is_fatal(ret) == 0);
 
 	if (ret < 0)
@@ -108,9 +145,11 @@ int set_callback(struct session *sess)
 {
 	if (sess->data == NULL)
 	{
+		printf("set callback failed\n");
 		return -1;
 	}
 	gnutls_transport_set_ptr(sess->session, sess->data);
+	gnutls_session_set_ptr(sess->session, sess->data);
 	gnutls_transport_set_pull_function(sess->session, pull_function);
 	gnutls_transport_set_push_function(sess->session, push_function);
 	gnutls_transport_set_pull_timeout_function(sess->session, pull_timeout_function);
@@ -181,4 +220,222 @@ int alpn_get_selected_protocol(struct session *sess, char *buf)
 	// note: p.data is constant value, only valid during the session life
 
 	return 0;
+}
+
+void free_cert_list(gnutls_pcert_st *st, int size)
+{
+	int i;
+	gnutls_pcert_st *st1;
+	for (i = 0; i < size; i++)
+	{
+		st1 = st + i;
+		gnutls_pcert_deinit(st1);
+	}
+	free(st);
+}
+
+gnutls_pcert_st *load_cert_list(char *certfile, int *cert_size, int *retcode)
+{
+	gnutls_datum_t data;
+	int maxsize = 10;
+	int ret;
+	gnutls_pcert_st *st = malloc(10 * sizeof(gnutls_pcert_st));
+	ret = gnutls_load_file(certfile, &data);
+	if (ret < 0)
+	{
+		//printf("load file failed: %s", gnutls_strerror(ret));
+		*retcode = ret;
+		return NULL;
+	}
+	ret = gnutls_pcert_list_import_x509_raw(
+		st, &maxsize, &data, GNUTLS_X509_FMT_PEM, 0);
+	if (ret < 0)
+	{
+		gnutls_free(data.data);
+		//printf("import certificate failed: %s", gnutls_strerror(ret));
+		*retcode = ret;
+		return NULL;
+	}
+	gnutls_free(data.data);
+	*cert_size = maxsize;
+	*retcode = 0;
+	return st;
+}
+
+gnutls_privkey_t load_privkey(char *keyfile, int *retcode)
+{
+	gnutls_privkey_t privkey;
+	gnutls_datum_t data;
+	int ret;
+	ret = gnutls_load_file(keyfile, &data);
+	if (ret < 0)
+	{
+		//printf("load file failed: %s", gnutls_strerror(ret));
+		*retcode = ret;
+		return NULL;
+	}
+	gnutls_privkey_init(&privkey);
+	ret = gnutls_privkey_import_x509_raw(
+		privkey, &data, GNUTLS_X509_FMT_PEM, NULL, 0);
+	if (ret < 0)
+	{
+		//printf("import privkey failed: %s", gnutls_strerror(ret));
+		*retcode = ret;
+		gnutls_free(data.data);
+		return NULL;
+	}
+	gnutls_free(data.data);
+	*retcode = 0;
+	return privkey;
+}
+
+int get_pcert_alt_name(
+	gnutls_pcert_st *st, int index, int nameindex, char *out)
+{
+	gnutls_x509_crt_t crt;
+	int ret;
+	char data[1024];
+	size_t size = 1024;
+	gnutls_pcert_st *st1 = st + index;
+	ret = gnutls_x509_crt_init(&crt);
+	if (ret < 0)
+	{
+		return ret;
+	}
+	ret = gnutls_pcert_export_x509(st1, &crt);
+	if (ret < 0)
+	{
+		gnutls_x509_crt_deinit(crt);
+		return ret;
+	}
+	ret = gnutls_x509_crt_get_subject_alt_name(
+		crt, nameindex, (void *)data, &size, NULL);
+	if (ret < 0)
+	{
+		gnutls_x509_crt_deinit(crt);
+		return ret;
+	}
+	gnutls_x509_crt_deinit(crt);
+	memcpy(out, data, size);
+	return size;
+}
+
+int get_cert_str(gnutls_pcert_st *st, int index, int flag, char *out)
+{
+	gnutls_x509_crt_t crt;
+	int ret;
+	gnutls_datum_t data;
+	gnutls_pcert_st *st1 = st + index;
+	ret = gnutls_x509_crt_init(&crt);
+	if (ret < 0)
+	{
+		return ret;
+	}
+	ret = gnutls_pcert_export_x509(st1, &crt);
+	if (ret < 0)
+	{
+		gnutls_x509_crt_deinit(crt);
+		return ret;
+	}
+	ret = gnutls_x509_crt_print(crt, flag, &data);
+	if (ret < 0)
+	{
+		return ret;
+	}
+	memcpy(out, data.data, data.size);
+	gnutls_free(data.data);
+	gnutls_x509_crt_deinit(crt);
+	return data.size;
+}
+
+int get_cert_dn(gnutls_pcert_st *st, int index, char *out)
+{
+
+	gnutls_x509_crt_t crt;
+	int ret;
+	char data[200];
+	size_t size = 200;
+	gnutls_pcert_st *st1 = st + index;
+	ret = gnutls_x509_crt_init(&crt);
+	if (ret < 0)
+	{
+		return ret;
+	}
+	ret = gnutls_pcert_export_x509(st1, &crt);
+	if (ret < 0)
+	{
+		gnutls_x509_crt_deinit(crt);
+		return ret;
+	}
+	ret = gnutls_x509_crt_get_dn(crt, data, &size);
+	if (ret < 0)
+	{
+		gnutls_x509_crt_deinit(crt);
+		return ret;
+	}
+	memcpy(out, data, size);
+	return size;
+}
+
+int get_cert_issuer_dn(gnutls_pcert_st *st, int index, char *out)
+{
+
+	gnutls_x509_crt_t crt;
+	int ret;
+	char data[200];
+	size_t size = 200;
+	gnutls_pcert_st *st1 = st + index;
+	ret = gnutls_x509_crt_init(&crt);
+	if (ret < 0)
+	{
+		return ret;
+	}
+	ret = gnutls_pcert_export_x509(st1, &crt);
+	if (ret < 0)
+	{
+		gnutls_x509_crt_deinit(crt);
+		return ret;
+	}
+	ret = gnutls_x509_crt_get_issuer_dn(crt, data, &size);
+	if (ret < 0)
+	{
+		gnutls_x509_crt_deinit(crt);
+		return ret;
+	}
+	memcpy(out, data, size);
+	return size;
+}
+
+gnutls_pcert_st *get_peer_certificate(gnutls_session_t sess, int *pcert_length)
+{
+	const gnutls_datum_t *raw_certs;
+	const gnutls_datum_t *d;
+	gnutls_pcert_st *st, *st1;
+	int ret;
+	int i;
+	*pcert_length = 0;
+	raw_certs = gnutls_certificate_get_peers(sess, pcert_length);
+	if (pcert_length == NULL)
+	{
+		printf("pcert length is NULL\n");
+		return NULL;
+	}
+	if (*pcert_length == 0)
+	{
+		printf("pcert length is 0\n");
+		return NULL;
+	}
+	//printf("pcert length %d\n", *pcert_length);
+	st = malloc((*pcert_length) * sizeof(gnutls_pcert_st));
+	for (i = 0; i < *pcert_length; i++)
+	{
+		st1 = st + i;
+		d = raw_certs + i;
+		ret = gnutls_pcert_import_x509_raw(st1, d, GNUTLS_X509_FMT_DER, 0);
+		if (ret < 0)
+		{
+			printf("import cert failed: %s\n", gnutls_strerror(ret));
+		}
+	}
+	return st;
 }

@@ -2,6 +2,7 @@
 #define _GNUTLS_H
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
+#include <gnutls/abstract.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,13 +11,12 @@ struct session
 {
 	gnutls_session_t session;
 	gnutls_certificate_credentials_t xcred;
-	int handshake;
 	void *data;
 };
 
-extern int DataRead(void *, char *, int);
-extern int DataWrite(void *, char *, int);
-extern int DataTimeoutPull(void *, int);
+extern int OnOnDataReadCallbackCallback(void *, char *, int);
+extern int OnDataWriteCallback(void *, char *, int);
+extern int OnDataTimeoutRead(void *, int);
 
 struct session *init_client_session();
 struct session *init_server_session();
@@ -31,10 +31,27 @@ int set_callback(struct session *sess);
 
 void session_destroy(struct session *);
 
+int OnCertSelectCallback(void *ptr, char *hostname, int namelen,
+						 int *pcert_length, gnutls_pcert_st **cert, gnutls_privkey_t *privke);
+
 gnutls_cipher_hd_t new_cipher(int cipher_type, char *key, int keylen, char *iv, int ivlen);
 
 gnutls_hash_hd_t new_hash(int t);
 
 int alpn_set_protocols(struct session *sess, char **, int);
 int alpn_get_selected_protocol(struct session *sess, char *buf);
+
+gnutls_privkey_t load_privkey(char *keyfile, int *);
+gnutls_pcert_st *load_cert_list(char *certfile, int *, int *);
+
+int get_pcert_alt_name(gnutls_pcert_st *st, int index, int nameindex, char *out);
+
+int get_cert_str(gnutls_pcert_st *st, int index, int flag, char *out);
+
+int get_cert_issuer_dn(gnutls_pcert_st *st, int index, char *out);
+
+int get_cert_dn(gnutls_pcert_st *st, int index, char *out);
+
+void free_cert_list(gnutls_pcert_st *st, int size);
+gnutls_pcert_st *get_peer_certificate(gnutls_session_t sess, int *pcert_length);
 #endif

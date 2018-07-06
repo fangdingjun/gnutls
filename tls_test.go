@@ -1,9 +1,15 @@
 package gnutls
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/tls"
+	"fmt"
+	"io"
 	"log"
 	"net"
+	"net/http"
+	"os"
 	"testing"
 )
 
@@ -66,8 +72,13 @@ func TestTLSClient(t *testing.T) {
 }
 
 func TestTLSServer(t *testing.T) {
+	cert, err := LoadX509KeyPair("testdata/server.crt", "testdata/server.key")
+	if err != nil {
+		t.Fatal(err)
+	}
 	l, err := Listen("tcp", "127.0.0.1:0", &Config{
-		CrtFile: "testdata/server.crt", KeyFile: "testdata/server.key"})
+		Certificates: []*Certificate{cert},
+	})
 	if err != nil {
 		t.Fatal("gnutls listen ", err)
 	}
@@ -84,7 +95,11 @@ func TestTLSServer(t *testing.T) {
 			log.Println("accept connection from ", c.RemoteAddr())
 			go func(c net.Conn) {
 				defer c.Close()
-
+				tlsconn := c.(*Conn)
+				if err := tlsconn.Handshake(); err != nil {
+					log.Println(err)
+					return
+				}
 				buf := make([]byte, 4096)
 				for {
 					n, err := c.Read(buf[0:])
@@ -125,11 +140,13 @@ func TestTLSALPNServer(t *testing.T) {
 	serveralpn := []string{"a1", "a3", "a2"}
 	clientalpn := []string{"a0", "a2", "a5"}
 	expectedAlpn := "a2"
-
+	cert, err := LoadX509KeyPair("testdata/server.crt", "testdata/server.key")
+	if err != nil {
+		t.Fatal(err)
+	}
 	l, err := Listen("tcp", "127.0.0.1:0", &Config{
-		CrtFile:    "testdata/server.crt",
-		KeyFile:    "testdata/server.key",
-		NextProtos: serveralpn,
+		Certificates: []*Certificate{cert},
+		NextProtos:   serveralpn,
 	})
 	if err != nil {
 		t.Fatal("gnutls listen ", err)
@@ -291,4 +308,101 @@ func TestTLSALPNClient(t *testing.T) {
 	if string(buf[:n]) != data {
 		t.Errorf("need: %s, got: %s", data, string(buf[:n]))
 	}
+}
+
+func TestTLSServerSNI(t *testing.T) {
+	certificates := []*Certificate{}
+	cert, err := LoadX509KeyPair("testdata/server.crt", "testdata/server.key")
+	if err != nil {
+		t.Fatal("load key failed")
+	}
+
+	certificates = append(certificates, cert)
+	cert, err = LoadX509KeyPair("testdata/server2.crt", "testdata/server2.key")
+	if err != nil {
+		t.Fatal("load key failed")
+	}
+
+	certificates = append(certificates, cert)
+	cert, err = LoadX509KeyPair("testdata/server3.crt", "testdata/server3.key")
+	if err != nil {
+		t.Fatal("load key failed")
+	}
+	certificates = append(certificates, cert)
+
+	l, err := Listen("tcp", "127.0.0.1:0", &Config{
+		Certificates: certificates,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	addr := l.Addr().String()
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				log.Println(err)
+				break
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				tlsconn := c.(*Conn)
+				if err := tlsconn.Handshake(); err != nil {
+					log.Println(err)
+					return
+				}
+				state := tlsconn.ConnectionState()
+				fmt.Fprintf(c, state.ServerName)
+			}(c)
+		}
+	}()
+
+	for _, servername := range []string{"abc.com", "example.com", "a.aaa.com", "b.aaa.com"} {
+		conn, err := tls.Dial("tcp", addr, &tls.Config{
+			ServerName:         servername,
+			InsecureSkipVerify: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		//state := conn.ConnectionState()
+		//log.Printf("%+v", state.PeerCertificates[0])
+		buf := make([]byte, 100)
+		n, err := conn.Read(buf)
+		if err != nil && err != io.EOF {
+			t.Error(err)
+		}
+		if !bytes.Equal(buf[:n], []byte(servername)) {
+			t.Errorf("expect %s, got %s", servername, string(buf[:n]))
+		}
+		conn.Close()
+	}
+}
+
+func TestTLSGetPeerCert(t *testing.T) {
+	conn, err := Dial("tcp", "www.ratafee.nl:443", &Config{
+		ServerName: "www.ratafee.nl",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	//tlsconn := conn.(*Conn)
+	if err := conn.Handshake(); err != nil {
+		t.Fatal(err)
+	}
+	state := conn.ConnectionState()
+	for i := 0; i < int(state.PeerCertificate.certSize); i++ {
+		log.Println(state.PeerCertificate.getCertString(i, 1))
+	}
+
+	req, _ := http.NewRequest("GET", "https://www.ratafee.nl/httpbin/ip", nil)
+	req.Write(conn)
+	r := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(r, req)
+	if err != nil {
+		t.Error(err)
+	}
+	resp.Write(os.Stdout)
 }
