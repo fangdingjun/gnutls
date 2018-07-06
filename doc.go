@@ -24,11 +24,14 @@ TLS client example:
 	}
 
 TLS Server example:
-
+	cert, err := gnutls.LoadX509KeyPair("testdata/server/crt", "testdata/server.key")
+	if err != nil{
+		// handle error
+	}
 	l, err := gnults.Listen("tcp", "127.0.0.1:9443", &gnutls.Config{
-		CrtFile: "testdata/server.crt", KeyFile: "testdata/server.key"})
+		Certificates: []*gnutls.Certificate{cert}})
 	if err != nil {
-		t.Fatal("gnutls listen ", err)
+		// handle error
 	}
 	defer l.Close()
 	for {
@@ -78,13 +81,15 @@ AES encrypt/decrypt example:
 	}
 
 	// encrypt
-	cdata, err := c.Encrypt(data)
+	dst := make([]byte, len(data))
+	err := c.Encrypt(dst, data)
 	if err != nil {
 		t.Fatal("encrypt failed", err)
 	}
 
 	// decrypt
-	data1, err := c1.Decrypt(cdata)
+	data1 := make([]byte, len(data))
+	err := c1.Decrypt(data1, cdata)
 	if err != nil {
 		t.Fatal("decrypt failed", err)
 	}

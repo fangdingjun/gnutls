@@ -9,25 +9,28 @@ import (
 	"fmt"
 )
 
+// HashType hash type
+type HashType int
+
 const (
-	GNUTLS_HASH_MD5    = 2
-	GNUTLS_HASH_SHA1   = 3
-	GNUTLS_HASH_MD2    = 5
-	GNUTLS_HASH_SHA256 = 6
-	GNUTLS_HASH_SHA384 = 7
-	GNUTLS_HASH_SHA512 = 8
-	GNUTLS_HASH_SHA224 = 9
+	GNUTLS_HASH_MD5    HashType = 2
+	GNUTLS_HASH_SHA1   HashType = 3
+	GNUTLS_HASH_MD2    HashType = 5
+	GNUTLS_HASH_SHA256 HashType = 6
+	GNUTLS_HASH_SHA384 HashType = 7
+	GNUTLS_HASH_SHA512 HashType = 8
+	GNUTLS_HASH_SHA224 HashType = 9
 )
 
 // Hash hash struct
 type Hash struct {
 	hash    C.gnutls_hash_hd_t
-	t       int
+	t       HashType
 	hashLen C.int
 }
 
 // NewHash new hash struct
-func NewHash(t int) *Hash {
+func NewHash(t HashType) *Hash {
 	h := C.new_hash(C.int(t))
 	hashOutLen := GetHashOutputLen(t)
 	return &Hash{h, t, C.int(hashOutLen)}
@@ -70,7 +73,8 @@ func (h *Hash) Close() error {
 }
 
 // GetHashOutputLen get the hash algorithm output length
+//
 // example GNUTLS_MD5 is 16
-func GetHashOutputLen(t int) int {
+func GetHashOutputLen(t HashType) int {
 	return int(C.gnutls_hash_get_len(C.gnutls_digest_algorithm_t(t)))
 }

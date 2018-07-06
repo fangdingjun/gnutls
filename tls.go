@@ -20,7 +20,8 @@ const (
 	GNUTLS_ALPN_SERVER_PRECEDENCE = 1 << 1
 )
 
-// Conn tls connection for client
+// Conn gnutls TLS connection,
+// use Listen, Dial, NewServerConn or NewClientConn create this object
 type Conn struct {
 	c         net.Conn
 	handshake bool
@@ -30,7 +31,7 @@ type Conn struct {
 	cfg       *Config
 }
 
-// Config tls configure
+// Config gnutls TLS configure,
 type Config struct {
 	ServerName         string
 	Certificates       []*Certificate
@@ -38,7 +39,7 @@ type Config struct {
 	NextProtos         []string
 }
 
-// ConnectionState connection state
+// ConnectionState gnutls TLS connection state
 type ConnectionState struct {
 	// SNI name client send
 	ServerName string
@@ -48,7 +49,8 @@ type ConnectionState struct {
 	// TLS version number, ex: 0x303
 	Version uint16
 	// TLS version number, ex: TLS1.0
-	VersionName     string
+	VersionName string
+	// peer's certificate
 	PeerCertificate *Certificate
 }
 
@@ -76,7 +78,7 @@ func (l *listener) Addr() net.Addr {
 	return l.l.Addr()
 }
 
-// Dial create a new connection
+// Dial dial to (network, addr) and create a gnutls Conn
 func Dial(network, addr string, cfg *Config) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
@@ -85,7 +87,7 @@ func Dial(network, addr string, cfg *Config) (*Conn, error) {
 	return NewClientConn(c, cfg)
 }
 
-// Listen create a listener
+// Listen create a gnutls listener on (network, addr),
 func Listen(network, addr string, cfg *Config) (net.Listener, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is need")
@@ -97,7 +99,7 @@ func Listen(network, addr string, cfg *Config) (net.Listener, error) {
 	return &listener{l, cfg}, nil
 }
 
-// NewServerConn create a server Conn
+// NewServerConn create a server TLS Conn on c
 func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
 	var sess = C.init_server_session()
 	conn := &Conn{c: c, sess: sess, cfg: cfg}
@@ -114,7 +116,7 @@ func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
 	return conn, nil
 }
 
-// NewClientConn create a new gnutls connection
+// NewClientConn create a client TLS Conn on c
 func NewClientConn(c net.Conn, cfg *Config) (*Conn, error) {
 	var sess = C.init_client_session()
 	conn := &Conn{c: c, sess: sess, cfg: cfg}
@@ -167,7 +169,8 @@ func setAlpnProtocols(sess *C.struct_session, cfg *Config) error {
 
 }
 
-// Handshake handshake tls
+// Handshake call handshake for TLS Conn,
+// this function will call automatic on Read/Write, if not handshake yet
 func (c *Conn) Handshake() error {
 	if c.handshake {
 		return nil
@@ -181,7 +184,7 @@ func (c *Conn) Handshake() error {
 	return nil
 }
 
-// Read read data from tls connection
+// Read read application data from TLS connection
 func (c *Conn) Read(buf []byte) (n int, err error) {
 	if !c.handshake {
 		err = c.Handshake()
@@ -211,7 +214,7 @@ func (c *Conn) Read(buf []byte) (n int, err error) {
 	return n, nil
 }
 
-// Write write data to tls connection
+// Write write application data to TLS connection
 func (c *Conn) Write(buf []byte) (n int, err error) {
 	if !c.handshake {
 		err = c.Handshake()
@@ -238,7 +241,7 @@ func (c *Conn) Write(buf []byte) (n int, err error) {
 	return n, nil
 }
 
-// Close close the conn and destroy the tls context
+// Close close the TLS conn and destroy the tls context
 func (c *Conn) Close() error {
 	C.gnutls_record_send(c.sess.session, nil, 0)
 	C.session_destroy(c.sess)
@@ -278,7 +281,7 @@ func (c *Conn) SetDeadline(t time.Time) error {
 	return c.c.SetDeadline(t)
 }
 
-// ConnectionState report connection state
+// ConnectionState get TLS connection state
 func (c *Conn) ConnectionState() *ConnectionState {
 	if c.state != nil {
 		return c.state
@@ -338,7 +341,8 @@ func (c *Conn) getServerName() string {
 	return name
 }
 
-// OnDataReadCallback c callback function for data read
+// OnDataReadCallback callback function for gnutls library want to read data from network
+//
 //export OnDataReadCallback
 func OnDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	//log.Println("read addr ", uintptr(d))
@@ -356,7 +360,8 @@ func OnDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	return C.int(n)
 }
 
-// OnDataWriteCallback c callback function for data write
+// OnDataWriteCallback callback function for gnutls library want to send data to network
+//
 //export OnDataWriteCallback
 func OnDataWriteCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	//log.Println("write addr ", uintptr(d), int(_l))
@@ -370,14 +375,20 @@ func OnDataWriteCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	return C.int(n)
 }
 
-// OnDataTimeoutRead c callback function for timeout read
+// OnDataTimeoutRead callback function for timeout read
+//
 //export OnDataTimeoutRead
 func OnDataTimeoutRead(d unsafe.Pointer, delay C.int) C.int {
 	log.Println("timeout pull function")
 	return 0
 }
 
-// OnCertSelectCallback callback function for ceritificate select
+// OnCertSelectCallback callback function for ceritificate select,
+// this function select certificate from Config.Certificates field,
+//
+// on server side, this function select the certificate depend on SNI what client send,
+// if client not send SNI, select the Config.Certificates[0]
+//
 //export OnCertSelectCallback
 func OnCertSelectCallback(ptr unsafe.Pointer, hostname *C.char,
 	namelen C.int, pcertLength *C.int, cert **C.gnutls_pcert_st, privkey *C.gnutls_privkey_t) C.int {

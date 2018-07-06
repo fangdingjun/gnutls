@@ -60,7 +60,8 @@ func (c *Certificate) buildNames() {
 	}
 }
 
-// CommonName get CN field in subject
+// CommonName get CN field in subject,
+//
 // example: subject C=xx,ST=bbb,CN=abc will return abc
 func (c *Certificate) CommonName() string {
 	return c.commonName(0)
@@ -102,7 +103,7 @@ func (c *Certificate) getAltName(index int, nameindex int) string {
 	return string(name)
 }
 
-//GetCertString get cert info string
+//GetCertString return certificate info string in one line
 func (c *Certificate) GetCertString() string {
 	return c.getCertString(0, 1)
 }
@@ -119,7 +120,7 @@ func (c *Certificate) getCertString(index int, flag int) string {
 	return string(s)
 }
 
-// GetDN get the subject like O=st,C=aa,CN=localhost
+// GetDN get the certificate subject, like O=st,C=aa,CN=localhost
 func (c *Certificate) GetDN() string {
 	return c.getDN(0)
 }
@@ -136,7 +137,7 @@ func (c *Certificate) getDN(index int) string {
 	return string(s)
 }
 
-// GetIssuerDN get the issuer's subject like O=st,C=ac,CN=localhost
+// GetIssuerDN get the certificate issuer's subject, like O=st,C=ac,CN=localhost
 func (c *Certificate) GetIssuerDN() string {
 	return c.getIssuerDN(0)
 }
@@ -154,7 +155,7 @@ func (c *Certificate) getIssuerDN(index int) string {
 }
 
 // LoadX509KeyPair load certificate pair,
-// the return Certifciate must be freed by call Free()
+// the return Certifciate must be freed by call Free(),
 func LoadX509KeyPair(certfile, keyfile string) (*Certificate, error) {
 	_certfile := C.CString(certfile)
 	_keyfile := C.CString(keyfile)
