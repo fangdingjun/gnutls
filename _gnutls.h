@@ -14,7 +14,7 @@ struct session
 	void *data;
 };
 
-extern int OnOnDataReadCallbackCallback(void *, char *, int);
+extern int OnDataReadCallback(void *, char *, int);
 extern int OnDataWriteCallback(void *, char *, int);
 extern int OnDataTimeoutRead(void *, int);
 

@@ -92,7 +92,7 @@ int cert_select_callback(gnutls_session_t sess, const gnutls_datum_t *req_ca_dn,
 
 ssize_t pull_function(gnutls_transport_ptr_t ptr, void *data, size_t len)
 {
-	return OnOnDataReadCallbackCallback(ptr, data, len);
+	return OnDataReadCallback(ptr, data, len);
 }
 
 int pull_timeout_function(gnutls_transport_ptr_t ptr, unsigned int ms)
@@ -417,12 +417,12 @@ gnutls_pcert_st *get_peer_certificate(gnutls_session_t sess, int *pcert_length)
 	raw_certs = gnutls_certificate_get_peers(sess, pcert_length);
 	if (pcert_length == NULL)
 	{
-		printf("pcert length is NULL\n");
+		//printf("pcert length is NULL\n");
 		return NULL;
 	}
 	if (*pcert_length == 0)
 	{
-		printf("pcert length is 0\n");
+		//printf("pcert length is 0\n");
 		return NULL;
 	}
 	//printf("pcert length %d\n", *pcert_length);
