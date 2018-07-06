@@ -1,5 +1,5 @@
-/*Package gnutls is a gnutls binding for golang
-
+// Package gnutls is a gnutls binding for golang.
+/*
 a limit set of api is supported.
 
 TLS api is very similar to crypto/tls on standard library.
