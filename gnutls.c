@@ -12,7 +12,7 @@ int cert_select_callback(gnutls_session_t sess, const gnutls_datum_t *req_ca_dn,
 						 int pk_algos_length, gnutls_pcert_st **pcert,
 						 unsigned int *pcert_length, gnutls_privkey_t *pkey);
 
-struct session *init_client_session()
+struct session *init_gnutls_client_session()
 {
 	struct session *sess = malloc(sizeof(struct session));
 	memset(sess, sizeof(struct session), 0);
@@ -23,7 +23,7 @@ struct session *init_client_session()
 	return sess;
 }
 
-struct session *init_server_session()
+struct session *init_gnutls_server_session()
 {
 	struct session *sess = malloc(sizeof(struct session));
 	memset(sess, sizeof(struct session), 0);
@@ -48,7 +48,7 @@ int _init_session(struct session *sess)
 
 void session_destroy(struct session *sess)
 {
-	gnutls_bye(sess->session, GNUTLS_SHUT_RDWR);
+	gnutls_bye(sess->session, GNUTLS_SHUT_WR);
 	gnutls_deinit(sess->session);
 	gnutls_certificate_free_credentials(sess->xcred);
 	free(sess);

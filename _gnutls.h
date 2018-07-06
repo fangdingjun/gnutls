@@ -18,8 +18,8 @@ extern int OnDataReadCallback(void *, char *, int);
 extern int OnDataWriteCallback(void *, char *, int);
 extern int OnDataTimeoutRead(void *, int);
 
-struct session *init_client_session();
-struct session *init_server_session();
+struct session *init_gnutls_client_session();
+struct session *init_gnutls_server_session();
 
 int pull_timeout_function(gnutls_transport_ptr_t ptr, unsigned int ms);
 ssize_t pull_function(gnutls_transport_ptr_t ptr, void *data, size_t len);

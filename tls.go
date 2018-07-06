@@ -101,7 +101,7 @@ func Listen(network, addr string, cfg *Config) (net.Listener, error) {
 
 // NewServerConn create a server TLS Conn on c
 func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
-	var sess = C.init_server_session()
+	var sess = C.init_gnutls_server_session()
 	conn := &Conn{c: c, sess: sess, cfg: cfg}
 	n := C.size_t(uintptr(unsafe.Pointer(conn)))
 	//log.Println("conn addr ", int(n))
@@ -118,7 +118,7 @@ func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
 
 // NewClientConn create a client TLS Conn on c
 func NewClientConn(c net.Conn, cfg *Config) (*Conn, error) {
-	var sess = C.init_client_session()
+	var sess = C.init_gnutls_client_session()
 	conn := &Conn{c: c, sess: sess, cfg: cfg}
 	n := C.size_t(uintptr(unsafe.Pointer(conn)))
 	//log.Println("conn addr ", int(n))
