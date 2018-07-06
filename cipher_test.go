@@ -10,7 +10,7 @@ import (
 
 func TestCipherSize(t *testing.T) {
 	data := []struct {
-		t     int
+		t     CipherType
 		bsize int
 		isize int
 	}{
@@ -56,11 +56,13 @@ func TestEncryptDecrypt(t *testing.T) {
 	if c == nil {
 		t.Fatal("new ciphoer failed")
 	}
-	cdata, err := c.Encrypt(data)
+	cdata := make([]byte, len(data))
+	err = c.Encrypt(cdata, data)
 	if err != nil {
 		t.Fatal("encrypt failed", err)
 	}
-	data1, err := c1.Decrypt(cdata)
+	data1 := make([]byte, len(data))
+	err = c1.Decrypt(data1, cdata)
 	if err != nil {
 		t.Fatal("decrypt failed", err)
 	}
@@ -88,13 +90,13 @@ func BenchmarkAESEncrypt(b *testing.B) {
 	rand.Reader.Read(key)
 	rand.Reader.Read(iv)
 	buf := make([]byte, datalen)
-
+	dst := make([]byte, datalen)
 	for i := 0; i < b.N; i++ {
 		c, err := NewCipher(cipherName, key, iv)
 		if err != nil {
 			b.Fatal(err)
 		}
-		c.Encrypt(buf)
+		c.Encrypt(dst, buf)
 		c.Close()
 	}
 }
