@@ -6,7 +6,9 @@ package gnutls
 */
 import "C"
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"runtime"
@@ -94,7 +96,7 @@ func Dial(network, addr string, cfg *Config) (*Conn, error) {
 // Listen create a gnutls listener on (network, addr),
 func Listen(network, addr string, cfg *Config) (net.Listener, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("config is need")
+		return nil, errors.New("config is needed")
 	}
 	l, err := net.Listen(network, addr)
 	if err != nil {
@@ -185,7 +187,7 @@ func (c *Conn) Handshake() error {
 	}
 	ret := C.handshake(c.sess)
 	if int(ret) < 0 {
-		return fmt.Errorf("handshake error")
+		return fmt.Errorf("handshake error: %s", C.GoString(C.gnutls_strerror(ret)))
 	}
 	c.handshake = true
 	//log.Println("handshake done")
@@ -210,7 +212,7 @@ func (c *Conn) Read(buf []byte) (n int, err error) {
 	}
 
 	if int(ret) == 0 {
-		return 0, fmt.Errorf("connection closed")
+		return 0, io.EOF
 	}
 
 	n = int(ret)
@@ -237,7 +239,7 @@ func (c *Conn) Write(buf []byte) (n int, err error) {
 	}
 
 	if int(ret) == 0 {
-		return 0, fmt.Errorf("connection closed")
+		return 0, io.EOF
 	}
 
 	return n, nil
