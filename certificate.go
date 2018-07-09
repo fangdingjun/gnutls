@@ -7,6 +7,7 @@ import "C"
 import (
 	"fmt"
 	"log"
+	"runtime"
 	"strings"
 	"unsafe"
 )
@@ -30,6 +31,11 @@ func (c *Certificate) Free() {
 	c.cert = nil
 	c.privkey = nil
 	c.certSize = 0
+}
+
+func (c *Certificate) free() {
+	log.Println("free certificate")
+	c.Free()
 }
 
 func (c *Certificate) matchName(name string) bool {
@@ -181,5 +187,6 @@ func LoadX509KeyPair(certfile, keyfile string) (*Certificate, error) {
 	certificate.privkey = privkey
 	certificate.certSize = certSize
 	certificate.buildNames()
+	runtime.SetFinalizer(certificate, (*Certificate).free)
 	return certificate, nil
 }

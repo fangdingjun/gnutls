@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"runtime"
 	"time"
 	"unsafe"
 )
@@ -29,6 +30,7 @@ type Conn struct {
 	cservname *C.char
 	state     *ConnectionState
 	cfg       *Config
+	closed    bool
 }
 
 // Config gnutls TLS configure,
@@ -113,6 +115,7 @@ func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
 			log.Println(err)
 		}
 	}
+	runtime.SetFinalizer(conn, (*Conn).free)
 	return conn, nil
 }
 
@@ -150,6 +153,7 @@ func NewClientConn(c net.Conn, cfg *Config) (*Conn, error) {
 	} else {
 		C.gnutls_session_set_verify_cert(sess.session, nil, 0)
 	}
+	runtime.SetFinalizer(conn, (*Conn).free)
 	return conn, nil
 }
 
@@ -243,7 +247,10 @@ func (c *Conn) Write(buf []byte) (n int, err error) {
 
 // Close close the TLS conn and destroy the tls context
 func (c *Conn) Close() error {
-	C.gnutls_record_send(c.sess.session, nil, 0)
+	if c.closed {
+		return nil
+	}
+	//C.gnutls_record_send(c.sess.session, nil, 0)
 	C.session_destroy(c.sess)
 	c.c.Close()
 	if c.cservname != nil {
@@ -254,6 +261,10 @@ func (c *Conn) Close() error {
 		c.state.PeerCertificate.Free()
 	}
 	return nil
+}
+
+func (c *Conn) free() {
+	c.Close()
 }
 
 // SetWriteDeadline implements net.Conn
@@ -310,7 +321,9 @@ func (c *Conn) getPeerCertificate() *Certificate {
 	if st == nil {
 		return nil
 	}
-	return &Certificate{cert: st, certSize: C.int(size)}
+	cert := &Certificate{cert: st, certSize: C.int(size)}
+	runtime.SetFinalizer(cert, (*Certificate).free)
+	return cert
 }
 
 func (c *Conn) getAlpnSelectedProtocol() string {

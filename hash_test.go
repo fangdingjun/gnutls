@@ -6,12 +6,14 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"log"
+	"runtime"
 	"testing"
+	"time"
 )
 
 func TestHashSHA(t *testing.T) {
 	h := NewHash(GNUTLS_HASH_SHA512)
-	defer h.Close()
+	//defer h.Close()
 
 	data := []byte("1234")
 
@@ -24,6 +26,8 @@ func TestHashSHA(t *testing.T) {
 		log.Printf("\n%s\n%s", hex.EncodeToString(h4[:]), hex.EncodeToString(h1))
 		t.Fatal("hash not equal")
 	}
+	runtime.GC()
+	time.Sleep(1 * time.Second)
 }
 
 func BenchmarkHashSHA512(b *testing.B) {

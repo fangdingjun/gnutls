@@ -5,7 +5,9 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"runtime"
 	"testing"
+	"time"
 )
 
 func TestCipherSize(t *testing.T) {
@@ -44,13 +46,13 @@ func TestEncryptDecrypt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	//defer c.Close()
 
 	c1, err := NewCipher(cipherName, key, iv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c1.Close()
+	//defer c1.Close()
 
 	data := make([]byte, blocksize*10)
 	if c == nil {
@@ -76,6 +78,8 @@ func TestEncryptDecrypt(t *testing.T) {
 	if !bytes.Equal(dst, cdata) {
 		t.Fatal("cipher text not equal to cypto/aes")
 	}
+	runtime.GC()
+	time.Sleep(1 * time.Second)
 }
 
 func BenchmarkAESEncrypt(b *testing.B) {

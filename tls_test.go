@@ -10,7 +10,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"testing"
+	"time"
 )
 
 func TestTLSClient(t *testing.T) {
@@ -134,6 +136,8 @@ func TestTLSServer(t *testing.T) {
 	if string(buf[:n]) != data {
 		t.Errorf("need: %s, got: %s", data, string(buf[:n]))
 	}
+	runtime.GC()
+	time.Sleep(1 * time.Second)
 }
 
 func TestTLSALPNServer(t *testing.T) {
@@ -220,6 +224,8 @@ func TestTLSALPNServer(t *testing.T) {
 	if string(buf[:n]) != data {
 		t.Errorf("need: %s, got: %s", data, string(buf[:n]))
 	}
+	runtime.GC()
+	time.Sleep(1 * time.Second)
 }
 
 func TestTLSALPNClient(t *testing.T) {
@@ -308,6 +314,8 @@ func TestTLSALPNClient(t *testing.T) {
 	if string(buf[:n]) != data {
 		t.Errorf("need: %s, got: %s", data, string(buf[:n]))
 	}
+	runtime.GC()
+	time.Sleep(1 * time.Second)
 }
 
 func TestTLSServerSNI(t *testing.T) {
@@ -378,6 +386,8 @@ func TestTLSServerSNI(t *testing.T) {
 		}
 		conn.Close()
 	}
+	runtime.GC()
+	time.Sleep(1 * time.Second)
 }
 
 func TestTLSGetPeerCert(t *testing.T) {
@@ -405,4 +415,6 @@ func TestTLSGetPeerCert(t *testing.T) {
 		t.Error(err)
 	}
 	resp.Write(os.Stdout)
+	runtime.GC()
+	time.Sleep(1 * time.Second)
 }

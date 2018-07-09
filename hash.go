@@ -7,6 +7,8 @@ package gnutls
 import "C"
 import (
 	"fmt"
+	"log"
+	"runtime"
 )
 
 // HashType hash type
@@ -33,7 +35,9 @@ type Hash struct {
 func NewHash(t HashType) *Hash {
 	h := C.new_hash(C.int(t))
 	hashOutLen := GetHashOutputLen(t)
-	return &Hash{h, t, C.int(hashOutLen)}
+	hash := &Hash{h, t, C.int(hashOutLen)}
+	runtime.SetFinalizer(hash, (*Hash).free)
+	return hash
 }
 
 // Write write data to hash context
@@ -68,8 +72,15 @@ func (h *Hash) Sum(buf []byte) []byte {
 
 // Close destroy hash context
 func (h *Hash) Close() error {
-	C.gnutls_hash_deinit(h.hash, nil)
+	if h.hash != nil {
+		C.gnutls_hash_deinit(h.hash, nil)
+		h.hash = nil
+	}
 	return nil
+}
+func (h *Hash) free() {
+	log.Println("free hash")
+	h.Close()
 }
 
 // GetHashOutputLen get the hash algorithm output length

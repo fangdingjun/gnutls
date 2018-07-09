@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime"
 )
 
 // CipherType cipher type
@@ -83,7 +84,9 @@ func NewCipher(t CipherType, key []byte, iv []byte) (*Cipher, error) {
 		log.Println("new cipher return nil")
 		return nil, nil
 	}
-	return &Cipher{c, t, blocksize}, nil
+	cipher := &Cipher{c, t, blocksize}
+	runtime.SetFinalizer(cipher, (*Cipher).free)
+	return cipher, nil
 }
 
 // Encrypt encrypt the buf and place the encrypted data in dst,
@@ -136,8 +139,16 @@ func (c *Cipher) Decrypt(dst, buf []byte) error {
 
 // Close destroy the cipher context
 func (c *Cipher) Close() error {
-	C.gnutls_cipher_deinit(c.cipher)
+	if c.cipher != nil {
+		C.gnutls_cipher_deinit(c.cipher)
+		c.cipher = nil
+	}
 	return nil
+}
+
+func (c *Cipher) free() {
+	log.Println("free cipher")
+	c.Close()
 }
 
 // GetCipherKeySize get the cipher algorithm key length
