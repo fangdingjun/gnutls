@@ -23,7 +23,7 @@ const (
 )
 
 // Conn gnutls TLS connection,
-// use Listen, Dial, NewServerConn or NewClientConn create this object
+// use Listen, Dial, Server or Client create this object
 type Conn struct {
 	c         net.Conn
 	handshake bool
@@ -69,7 +69,7 @@ func (l *listener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewServerConn(c, l.c)
+	return Server(c, l.c)
 }
 
 // Close
@@ -88,7 +88,7 @@ func Dial(network, addr string, cfg *Config) (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClientConn(c, cfg)
+	return Client(c, cfg)
 }
 
 // Listen create a gnutls listener on (network, addr),
@@ -103,8 +103,8 @@ func Listen(network, addr string, cfg *Config) (net.Listener, error) {
 	return &listener{l, cfg}, nil
 }
 
-// NewServerConn create a server TLS Conn on c
-func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
+// Server create a server TLS Conn on c
+func Server(c net.Conn, cfg *Config) (*Conn, error) {
 	var sess = C.init_gnutls_server_session()
 	conn := &Conn{c: c, sess: sess, cfg: cfg, lock: new(sync.Mutex)}
 	n := C.size_t(uintptr(unsafe.Pointer(conn)))
@@ -121,8 +121,8 @@ func NewServerConn(c net.Conn, cfg *Config) (*Conn, error) {
 	return conn, nil
 }
 
-// NewClientConn create a client TLS Conn on c
-func NewClientConn(c net.Conn, cfg *Config) (*Conn, error) {
+// Client create a client TLS Conn on c
+func Client(c net.Conn, cfg *Config) (*Conn, error) {
 	var sess = C.init_gnutls_client_session()
 	conn := &Conn{c: c, sess: sess, cfg: cfg, lock: new(sync.Mutex)}
 	n := C.size_t(uintptr(unsafe.Pointer(conn)))
