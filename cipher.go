@@ -147,7 +147,7 @@ func (c *Cipher) Close() error {
 }
 
 func (c *Cipher) free() {
-	log.Println("free cipher")
+	//log.Println("free cipher")
 	c.Close()
 }
 

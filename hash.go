@@ -7,7 +7,6 @@ package gnutls
 import "C"
 import (
 	"fmt"
-	"log"
 	"runtime"
 )
 
@@ -79,7 +78,7 @@ func (h *Hash) Close() error {
 	return nil
 }
 func (h *Hash) free() {
-	log.Println("free hash")
+	//log.Println("free hash")
 	h.Close()
 }
 
