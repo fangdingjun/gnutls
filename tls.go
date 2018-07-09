@@ -341,10 +341,10 @@ func (c *Conn) getServerName() string {
 	return name
 }
 
-// OnDataReadCallback callback function for gnutls library want to read data from network
+// onDataReadCallback callback function for gnutls library want to read data from network
 //
-//export OnDataReadCallback
-func OnDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
+//export onDataReadCallback
+func onDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	//log.Println("read addr ", uintptr(d))
 	conn := (*Conn)(unsafe.Pointer((uintptr(d))))
 	buf := make([]byte, int(bufLen))
@@ -360,10 +360,10 @@ func OnDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	return C.int(n)
 }
 
-// OnDataWriteCallback callback function for gnutls library want to send data to network
+// onDataWriteCallback callback function for gnutls library want to send data to network
 //
-//export OnDataWriteCallback
-func OnDataWriteCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
+//export onDataWriteCallback
+func onDataWriteCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	//log.Println("write addr ", uintptr(d), int(_l))
 	conn := (*Conn)(unsafe.Pointer((uintptr(d))))
 	gobuf := C.GoBytes(unsafe.Pointer(cbuf), bufLen)
@@ -375,22 +375,22 @@ func OnDataWriteCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	return C.int(n)
 }
 
-// OnDataTimeoutRead callback function for timeout read
+// onDataTimeoutRead callback function for timeout read
 //
-//export OnDataTimeoutRead
-func OnDataTimeoutRead(d unsafe.Pointer, delay C.int) C.int {
+//export onDataTimeoutRead
+func onDataTimeoutRead(d unsafe.Pointer, delay C.int) C.int {
 	log.Println("timeout pull function")
 	return 0
 }
 
-// OnCertSelectCallback callback function for ceritificate select,
+// onCertSelectCallback callback function for ceritificate select,
 // this function select certificate from Config.Certificates field,
 //
 // on server side, this function select the certificate depend on SNI what client send,
 // if client not send SNI, select the Config.Certificates[0]
 //
-//export OnCertSelectCallback
-func OnCertSelectCallback(ptr unsafe.Pointer, hostname *C.char,
+//export onCertSelectCallback
+func onCertSelectCallback(ptr unsafe.Pointer, hostname *C.char,
 	namelen C.int, pcertLength *C.int, cert **C.gnutls_pcert_st, privkey *C.gnutls_privkey_t) C.int {
 
 	servername := C.GoStringN(hostname, namelen)

@@ -14,9 +14,9 @@ struct session
 	void *data;
 };
 
-extern int OnDataReadCallback(void *, char *, int);
-extern int OnDataWriteCallback(void *, char *, int);
-extern int OnDataTimeoutRead(void *, int);
+extern int onDataReadCallback(void *, char *, int);
+extern int onDataWriteCallback(void *, char *, int);
+extern int onDataTimeoutRead(void *, int);
 
 struct session *init_gnutls_client_session();
 struct session *init_gnutls_server_session();
@@ -31,7 +31,7 @@ int set_callback(struct session *sess);
 
 void session_destroy(struct session *);
 
-int OnCertSelectCallback(void *ptr, char *hostname, int namelen,
+int onCertSelectCallback(void *ptr, char *hostname, int namelen,
 						 int *pcert_length, gnutls_pcert_st **cert, gnutls_privkey_t *privke);
 
 gnutls_cipher_hd_t new_cipher(int cipher_type, char *key, int keylen, char *iv, int ivlen);

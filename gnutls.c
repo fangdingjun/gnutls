@@ -85,24 +85,24 @@ int cert_select_callback(gnutls_session_t sess, const gnutls_datum_t *req_ca_dn,
 		//return -1;
 	}
 	//printf("call go callback\n");
-	ret = OnCertSelectCallback(ptr, hostname, namelen, pcert_length, pcert, pkey);
+	ret = onCertSelectCallback(ptr, hostname, namelen, pcert_length, pcert, pkey);
 	//printf("after callback pcert_length %d, pcert 0x%x, pkey 0x%x\n", *pcert_length, pcert, pkey);
 	return ret;
 }
 
 ssize_t pull_function(gnutls_transport_ptr_t ptr, void *data, size_t len)
 {
-	return OnDataReadCallback(ptr, data, len);
+	return onDataReadCallback(ptr, data, len);
 }
 
 int pull_timeout_function(gnutls_transport_ptr_t ptr, unsigned int ms)
 {
-	return OnDataTimeoutRead(ptr, ms);
+	return onDataTimeoutRead(ptr, ms);
 }
 
 ssize_t push_function(gnutls_transport_ptr_t ptr, const void *data, size_t len)
 {
-	return OnDataWriteCallback(ptr, (char *)data, len);
+	return onDataWriteCallback(ptr, (char *)data, len);
 }
 
 void set_data(struct session *sess, size_t data)
