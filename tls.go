@@ -201,6 +201,10 @@ func (c *Conn) Read(buf []byte) (n int, err error) {
 		return
 	}
 
+	if len(buf) == 0 {
+		return 0, nil
+	}
+
 	bufLen := len(buf)
 	cbuf := C.malloc(C.size_t(bufLen))
 	defer C.free(cbuf)
@@ -227,6 +231,12 @@ func (c *Conn) Write(buf []byte) (n int, err error) {
 	if err != nil {
 		return
 	}
+
+	// user may call Write(nil) to do handshake
+	if len(buf) == 0 {
+		return 0, nil
+	}
+
 	cbuf := C.CBytes(buf)
 	defer C.free(cbuf)
 
