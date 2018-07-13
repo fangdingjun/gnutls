@@ -237,10 +237,11 @@ func (c *Conn) Write(buf []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	cbuf := C.CBytes(buf)
-	defer C.free(cbuf)
+	//cbuf := C.CBytes(buf)
+	//defer C.free(cbuf)
 
-	ret := C.gnutls_record_send(c.sess.session, cbuf, C.size_t(len(buf)))
+	ret := C.gnutls_record_send(c.sess.session,
+		unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	n = int(ret)
 
 	if n < 0 {
@@ -380,10 +381,10 @@ func onDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 		log.Println(err)
 		return -1
 	}
-	cbuf2 := C.CBytes(buf[:n])
+	//cbuf2 := C.CBytes(buf[:n])
 	// d := C.CString(string(buf[:n]))
-	defer C.free(cbuf2)
-	C.memcpy(unsafe.Pointer(cbuf), unsafe.Pointer(cbuf2), C.size_t(n))
+	//defer C.free(cbuf2)
+	C.memcpy(unsafe.Pointer(cbuf), unsafe.Pointer(&buf[0]), C.size_t(n))
 	return C.int(n)
 }
 
