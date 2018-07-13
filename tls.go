@@ -205,11 +205,12 @@ func (c *Conn) Read(buf []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	bufLen := len(buf)
-	cbuf := C.malloc(C.size_t(bufLen))
-	defer C.free(cbuf)
+	//bufLen := len(buf)
+	//cbuf := C.malloc(C.size_t(bufLen))
+	//defer C.free(cbuf)
 
-	ret := C.gnutls_record_recv(c.sess.session, cbuf, C.size_t(bufLen))
+	ret := C.gnutls_record_recv(c.sess.session,
+		unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	if int(ret) < 0 {
 		return 0, fmt.Errorf("read error: %s",
 			C.GoString(C.gnutls_strerror(C.int(ret))))
@@ -220,8 +221,8 @@ func (c *Conn) Read(buf []byte) (n int, err error) {
 	}
 
 	n = int(ret)
-	gobuf2 := C.GoBytes(cbuf, C.int(ret))
-	copy(buf, gobuf2)
+	//gobuf2 := C.GoBytes(cbuf, C.int(ret))
+	//copy(buf, gobuf2)
 	return n, nil
 }
 
