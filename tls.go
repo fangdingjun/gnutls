@@ -204,7 +204,9 @@ func (c *Conn) Read(buf []byte) (n int, err error) {
 	if len(buf) == 0 {
 		return 0, nil
 	}
-
+	if c.closed {
+		return 0, io.EOF
+	}
 	//bufLen := len(buf)
 	//cbuf := C.malloc(C.size_t(bufLen))
 	//defer C.free(cbuf)
@@ -237,7 +239,9 @@ func (c *Conn) Write(buf []byte) (n int, err error) {
 	if len(buf) == 0 {
 		return 0, nil
 	}
-
+	if c.closed {
+		return 0, io.EOF
+	}
 	//cbuf := C.CBytes(buf)
 	//defer C.free(cbuf)
 
