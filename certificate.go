@@ -17,7 +17,6 @@ type Certificate struct {
 	cert     *C.gnutls_pcert_st
 	privkey  C.gnutls_privkey_t
 	certSize C.int
-	names    []string
 }
 
 // Free free the certificate context
@@ -39,31 +38,17 @@ func (c *Certificate) free() {
 }
 
 func (c *Certificate) matchName(name string) bool {
-	for _, n := range c.names {
-		if n == name {
-			return true
-		}
-		if strings.HasPrefix(n, "*") {
-			n1 := strings.Replace(n, "*.", "", 1)
-			if strings.HasSuffix(name, n1) {
-				return true
-			}
-		}
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+	ret := C.cert_check_hostname(c.cert, c.certSize, cname)
+	if int(ret) < 0 {
+		log.Println(C.GoString(C.gnutls_strerror(ret)))
+		return false
+	}
+	if int(ret) > 0 {
+		return true
 	}
 	return false
-}
-
-func (c *Certificate) buildNames() {
-	if c.names != nil {
-		return
-	}
-	c.names = []string{}
-	for i := 0; i < int(c.certSize); i++ {
-		cn := c.commonName(i)
-		if cn != "" {
-			c.names = append(c.names, cn)
-		}
-	}
 }
 
 // CommonName get CN field in subject,
@@ -186,7 +171,6 @@ func LoadX509KeyPair(certfile, keyfile string) (*Certificate, error) {
 	certificate.cert = cert
 	certificate.privkey = privkey
 	certificate.certSize = certSize
-	certificate.buildNames()
 	runtime.SetFinalizer(certificate, (*Certificate).free)
 	return certificate, nil
 }

@@ -439,3 +439,29 @@ gnutls_pcert_st *get_peer_certificate(gnutls_session_t sess, int *pcert_length)
 	}
 	return st;
 }
+
+int cert_check_hostname(gnutls_pcert_st *st, int len, char *hostname)
+{
+	int i;
+	int ret;
+	int allow = 0;
+	gnutls_x509_crt_t crt;
+	for (i = 0; i < len; i++)
+	{
+		gnutls_x509_crt_init(&crt);
+		ret = gnutls_pcert_export_x509((st + i), &crt);
+		if (ret < 0)
+		{
+			return ret;
+		}
+		ret = gnutls_x509_crt_check_hostname(crt, hostname);
+		if (ret != 0)
+		{
+			allow = 1;
+			gnutls_x509_crt_deinit(crt);
+			break;
+		}
+		gnutls_x509_crt_deinit(crt);
+	}
+	return allow;
+}

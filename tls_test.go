@@ -366,23 +366,34 @@ func TestTLSServerSNI(t *testing.T) {
 		}
 	}()
 
-	for _, servername := range []string{"abc.com", "example.com", "a.aaa.com", "b.aaa.com"} {
+	for _, cfg := range []struct {
+		serverName string
+		commonName string
+	}{
+		{"abc.com", "abc.com"},
+		{"example.com", "example.com"},
+		{"a.aaa.com", "*.aaa.com"},
+		{"b.aaa.com", "*.aaa.com"},
+	} {
 		conn, err := tls.Dial("tcp", addr, &tls.Config{
-			ServerName:         servername,
+			ServerName:         cfg.serverName,
 			InsecureSkipVerify: true,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		//state := conn.ConnectionState()
-		//log.Printf("%+v", state.PeerCertificates[0])
+		state := conn.ConnectionState()
+		_commonName := state.PeerCertificates[0].Subject.CommonName
+		if _commonName != cfg.commonName {
+			t.Errorf("expect: %s, got: %s", cfg.commonName, _commonName)
+		}
 		buf := make([]byte, 100)
 		n, err := conn.Read(buf)
 		if err != nil && err != io.EOF {
 			t.Error(err)
 		}
-		if !bytes.Equal(buf[:n], []byte(servername)) {
-			t.Errorf("expect %s, got %s", servername, string(buf[:n]))
+		if !bytes.Equal(buf[:n], []byte(cfg.serverName)) {
+			t.Errorf("expect %s, got %s", cfg.serverName, string(buf[:n]))
 		}
 		conn.Close()
 	}

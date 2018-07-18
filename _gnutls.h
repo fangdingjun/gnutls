@@ -54,4 +54,5 @@ int get_cert_dn(gnutls_pcert_st *st, int index, char *out);
 
 void free_cert_list(gnutls_pcert_st *st, int size);
 gnutls_pcert_st *get_peer_certificate(gnutls_session_t sess, int *pcert_length);
+int cert_check_hostname(gnutls_pcert_st *st, int len, char *hostname);
 #endif
