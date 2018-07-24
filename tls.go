@@ -384,7 +384,8 @@ func onDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	n, err := conn.c.Read(buf)
 	if err != nil {
 		log.Println(err)
-		return -1
+		// 0 indicates connection termination
+		return 0
 	}
 	//cbuf2 := C.CBytes(buf[:n])
 	// d := C.CString(string(buf[:n]))
