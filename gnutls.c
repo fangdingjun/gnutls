@@ -132,7 +132,7 @@ int handshake(struct session *sess)
 			printf("cert verify output: %s\n", out.data);
 			gnutls_free(out.data);
 		}
-		fprintf(stderr, "*** Handshake failed: %s\n", gnutls_strerror(ret));
+		//fprintf(stderr, "*** Handshake failed: %s\n", gnutls_strerror(ret));
 	} /*else{
 		desc = gnutls_session_get_desc(sess->session);
 		printf("- Session info: %s\n", desc);

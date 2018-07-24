@@ -383,7 +383,7 @@ func onDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	buf := make([]byte, int(bufLen))
 	n, err := conn.c.Read(buf)
 	if err != nil {
-		log.Println(err)
+		//log.Println(err)
 		// 0 indicates connection termination
 		return 0
 	}
@@ -403,7 +403,7 @@ func onDataWriteCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	gobuf := C.GoBytes(unsafe.Pointer(cbuf), bufLen)
 	n, err := conn.c.Write(gobuf)
 	if err != nil {
-		log.Println(err)
+		//log.Println(err)
 		return -1
 	}
 	return C.int(n)
