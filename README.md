@@ -17,18 +17,18 @@ TLS client example
         InsecureSkipVerify: true,
         })
 	if err != nil {
-		t.Fatal("gnutls dial ", err)
+		log.Fatal("gnutls dial ", err)
 	}
 	defer c.Close()
 
 	data := "hello, world"
 	if _, err = c.Write([]byte(data)); err != nil {
-		t.Fatal("gnutls write ", err)
+		log.Fatal("gnutls write ", err)
 	}
 	buf := make([]byte, 100)
 	n, err := c.Read(buf)
 	if err != nil {
-		t.Fatal("gnutls read ", err)
+		log.Fatal("gnutls read ", err)
 	}
 
 TLS Server example
@@ -76,33 +76,33 @@ AES encrypt/decrypt example
 	iv := []byte("abcdefg123456789")
 	c, err := gnutls.NewCipher(gnutls.GNUTLS_CIPHER_AES_128_CBC, key, iv)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	defer c.Close()
 
 	c1, err := gnutls.NewCipher(gnutls.GNUTLS_CIPHER_AES_128_CBC, key, iv)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	defer c1.Close()
 
 	data := []byte("1234012121212121")
 	if c == nil {
-		t.Fatal("new ciphoer failed")
+		log.Fatal("new ciphoer failed")
 	}
 
 	// encrypt
 	dst := make([]byte, len(data))
 	err := c.Encrypt(dst, data)
 	if err != nil {
-		t.Fatal("encrypt failed", err)
+		log.Fatal("encrypt failed", err)
 	}
 
 	// decrypt
 	data1 := make([]byte, len(data))
 	err := c1.Decrypt(data1, cdata)
 	if err != nil {
-		t.Fatal("decrypt failed", err)
+		log.Fatal("decrypt failed", err)
 	}
 
 
