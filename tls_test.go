@@ -6,10 +6,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
-	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -28,21 +26,21 @@ func TestTLSClient(t *testing.T) {
 	}
 	defer l.Close()
 	addr := l.Addr().String()
-	log.Println("test server listen on ", addr)
+	t.Log("test server listen on ", addr)
 	go func() {
 		for {
 			c, err := l.Accept()
 			if err != nil {
 				break
 			}
-			log.Printf("accept connection from %s", c.RemoteAddr())
+			t.Logf("accept connection from %s", c.RemoteAddr())
 			go func(c net.Conn) {
 				defer c.Close()
 				for {
 					buf := make([]byte, 4096)
 					n, err := c.Read(buf)
 					if err != nil {
-						log.Println("connection closed")
+						t.Log("connection closed")
 						break
 					}
 					if _, err = c.Write(buf[:n]); err != nil {
@@ -85,32 +83,32 @@ func TestTLSServer(t *testing.T) {
 		t.Fatal("gnutls listen ", err)
 	}
 	addr := l.Addr().String()
-	log.Println("test server listen on ", addr)
+	t.Log("test server listen on ", addr)
 	defer l.Close()
 	go func() {
 		for {
 			c, err := l.Accept()
 			if err != nil {
-				log.Println("gnutls accept ", err)
+				t.Log("gnutls accept ", err)
 				break
 			}
-			log.Println("accept connection from ", c.RemoteAddr())
+			t.Log("accept connection from ", c.RemoteAddr())
 			go func(c net.Conn) {
 				defer c.Close()
 				tlsconn := c.(*Conn)
 				if err := tlsconn.Handshake(); err != nil {
-					log.Println(err)
+					t.Log(err)
 					return
 				}
 				buf := make([]byte, 4096)
 				for {
 					n, err := c.Read(buf[0:])
 					if err != nil {
-						log.Println("gnutls read ", err)
+						t.Log("gnutls read ", err)
 						break
 					}
 					if _, err := c.Write(buf[:n]); err != nil {
-						log.Println("gnutls write ", err)
+						t.Log("gnutls write ", err)
 						break
 					}
 				}
@@ -156,34 +154,34 @@ func TestTLSALPNServer(t *testing.T) {
 		t.Fatal("gnutls listen ", err)
 	}
 	addr := l.Addr().String()
-	log.Println("test server listen on ", addr)
+	t.Log("test server listen on ", addr)
 	defer l.Close()
 	go func() {
 		for {
 			c, err := l.Accept()
 			if err != nil {
-				log.Println("gnutls accept ", err)
+				t.Log("gnutls accept ", err)
 				break
 			}
-			log.Println("accept connection from ", c.RemoteAddr())
+			t.Log("accept connection from ", c.RemoteAddr())
 			go func(c net.Conn) {
 				defer c.Close()
 				tlsConn := c.(*Conn)
 				if err := tlsConn.Handshake(); err != nil {
-					log.Println(err)
+					t.Log(err)
 					return
 				}
 				connState := tlsConn.ConnectionState()
-				log.Printf("%+v", connState)
+				t.Logf("%+v", connState)
 				buf := make([]byte, 4096)
 				for {
 					n, err := c.Read(buf[0:])
 					if err != nil {
-						log.Println("gnutls read ", err)
+						t.Log("gnutls read ", err)
 						break
 					}
 					if _, err := c.Write(buf[:n]); err != nil {
-						log.Println("gnutls write ", err)
+						t.Log("gnutls write ", err)
 						break
 					}
 				}
@@ -205,7 +203,7 @@ func TestTLSALPNServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	connState := c.ConnectionState()
-	log.Printf("%+v", connState)
+	t.Logf("%+v", connState)
 
 	if connState.NegotiatedProtocol != expectedAlpn {
 		t.Errorf("expected alpn %s, got %s",
@@ -247,34 +245,34 @@ func TestTLSALPNClient(t *testing.T) {
 		t.Fatal("tls listen ", err)
 	}
 	addr := l.Addr().String()
-	log.Println("test server listen on ", addr)
+	t.Log("test server listen on ", addr)
 	defer l.Close()
 	go func() {
 		for {
 			c, err := l.Accept()
 			if err != nil {
-				log.Println("gnutls accept ", err)
+				t.Log("gnutls accept ", err)
 				break
 			}
-			log.Println("accept connection from ", c.RemoteAddr())
+			t.Log("accept connection from ", c.RemoteAddr())
 			go func(c net.Conn) {
 				defer c.Close()
 				tlsConn := c.(*tls.Conn)
 				if err := tlsConn.Handshake(); err != nil {
-					log.Println(err)
+					t.Log(err)
 					return
 				}
 				connState := tlsConn.ConnectionState()
-				log.Printf("%+v", connState)
+				t.Logf("%+v", connState)
 				buf := make([]byte, 4096)
 				for {
 					n, err := c.Read(buf[0:])
 					if err != nil {
-						log.Println("tls read ", err)
+						t.Log("tls read ", err)
 						break
 					}
 					if _, err := c.Write(buf[:n]); err != nil {
-						log.Println("tls write ", err)
+						t.Log("tls write ", err)
 						break
 					}
 				}
@@ -295,7 +293,7 @@ func TestTLSALPNClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	connState := c.ConnectionState()
-	log.Printf("%+v", connState)
+	t.Logf("%+v", connState)
 
 	if connState.NegotiatedProtocol != expectedAlpn {
 		t.Errorf("expected alpn %s, got %s",
@@ -350,14 +348,14 @@ func TestTLSServerSNI(t *testing.T) {
 		for {
 			c, err := l.Accept()
 			if err != nil {
-				log.Println(err)
+				t.Log(err)
 				break
 			}
 			go func(c net.Conn) {
 				defer c.Close()
 				tlsconn := c.(*Conn)
 				if err := tlsconn.Handshake(); err != nil {
-					log.Println(err)
+					t.Log(err)
 					return
 				}
 				state := tlsconn.ConnectionState()
@@ -415,7 +413,7 @@ func TestTLSGetPeerCert(t *testing.T) {
 	}
 	state := conn.ConnectionState()
 	for i := 0; i < int(state.PeerCertificate.certSize); i++ {
-		log.Println(state.PeerCertificate.getCertString(i, 1))
+		t.Log(state.PeerCertificate.getCertString(i, 1))
 	}
 
 	req, _ := http.NewRequest("GET", "https://www.ratafee.nl/httpbin/ip", nil)
@@ -425,7 +423,9 @@ func TestTLSGetPeerCert(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp.Write(os.Stdout)
+	var buf = new(bytes.Buffer)
+	resp.Write(buf)
+	t.Logf("%s", string(buf.Bytes()))
 	runtime.GC()
 	time.Sleep(1 * time.Second)
 }

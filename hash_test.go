@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/hex"
-	"log"
 	"runtime"
 	"testing"
 	"time"
@@ -23,7 +22,7 @@ func TestHashSHA(t *testing.T) {
 	h3.Write(data)
 	h4 := h3.Sum(nil)
 	if !bytes.Equal(h4[:], h1) {
-		log.Printf("\n%s\n%s", hex.EncodeToString(h4[:]), hex.EncodeToString(h1))
+		t.Logf("\n%s\n%s", hex.EncodeToString(h4[:]), hex.EncodeToString(h1))
 		t.Fatal("hash not equal")
 	}
 	runtime.GC()

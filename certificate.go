@@ -33,7 +33,7 @@ func (c *Certificate) Free() {
 }
 
 func (c *Certificate) free() {
-	log.Println("free certificate")
+	//log.Println("free certificate")
 	c.Free()
 }
 
