@@ -245,6 +245,7 @@ gnutls_pcert_st *load_cert_list(char *certfile, int *cert_size, int *retcode)
 	{
 		//printf("load file failed: %s", gnutls_strerror(ret));
 		*retcode = ret;
+		free(st);
 		return NULL;
 	}
 	ret = gnutls_pcert_list_import_x509_raw(
@@ -254,6 +255,7 @@ gnutls_pcert_st *load_cert_list(char *certfile, int *cert_size, int *retcode)
 		gnutls_free(data.data);
 		//printf("import certificate failed: %s", gnutls_strerror(ret));
 		*retcode = ret;
+		free(st);
 		return NULL;
 	}
 	gnutls_free(data.data);
@@ -282,6 +284,7 @@ gnutls_privkey_t load_privkey(char *keyfile, int *retcode)
 		//printf("import privkey failed: %s", gnutls_strerror(ret));
 		*retcode = ret;
 		gnutls_free(data.data);
+		gnutls_privkey_deinit(privkey);
 		return NULL;
 	}
 	gnutls_free(data.data);
@@ -305,19 +308,21 @@ int get_pcert_alt_name(
 	ret = gnutls_pcert_export_x509(st1, &crt);
 	if (ret < 0)
 	{
-		gnutls_x509_crt_deinit(crt);
-		return ret;
+		goto err;
 	}
 	ret = gnutls_x509_crt_get_subject_alt_name(
 		crt, nameindex, (void *)data, &size, NULL);
 	if (ret < 0)
 	{
-		gnutls_x509_crt_deinit(crt);
-		return ret;
+		goto err;
 	}
-	gnutls_x509_crt_deinit(crt);
+	//gnutls_x509_crt_deinit(crt);
 	memcpy(out, data, size);
-	return size;
+	//return size;
+	ret = size;
+err:
+	gnutls_x509_crt_deinit(crt);
+	return ret;
 }
 
 int get_cert_str(gnutls_pcert_st *st, int index, int flag, char *out)
@@ -334,18 +339,21 @@ int get_cert_str(gnutls_pcert_st *st, int index, int flag, char *out)
 	ret = gnutls_pcert_export_x509(st1, &crt);
 	if (ret < 0)
 	{
-		gnutls_x509_crt_deinit(crt);
-		return ret;
+		goto err;
 	}
 	ret = gnutls_x509_crt_print(crt, flag, &data);
 	if (ret < 0)
 	{
-		return ret;
+		goto err;
 	}
 	memcpy(out, data.data, data.size);
+	ret = data.size;
 	gnutls_free(data.data);
+//gnutls_x509_crt_deinit(crt);
+//return data.size;
+err:
 	gnutls_x509_crt_deinit(crt);
-	return data.size;
+	return ret;
 }
 
 int get_cert_dn(gnutls_pcert_st *st, int index, char *out)
@@ -364,17 +372,20 @@ int get_cert_dn(gnutls_pcert_st *st, int index, char *out)
 	ret = gnutls_pcert_export_x509(st1, &crt);
 	if (ret < 0)
 	{
-		gnutls_x509_crt_deinit(crt);
-		return ret;
+		goto err;
 	}
 	ret = gnutls_x509_crt_get_dn(crt, data, &size);
 	if (ret < 0)
 	{
-		gnutls_x509_crt_deinit(crt);
-		return ret;
+		goto err;
 	}
+	//gnutls_x509_crt_deinit(crt);
 	memcpy(out, data, size);
-	return size;
+	//return size;
+	ret = size;
+err:
+	gnutls_x509_crt_deinit(crt);
+	return ret;
 }
 
 int get_cert_issuer_dn(gnutls_pcert_st *st, int index, char *out)
@@ -393,17 +404,20 @@ int get_cert_issuer_dn(gnutls_pcert_st *st, int index, char *out)
 	ret = gnutls_pcert_export_x509(st1, &crt);
 	if (ret < 0)
 	{
-		gnutls_x509_crt_deinit(crt);
-		return ret;
+		goto err;
 	}
 	ret = gnutls_x509_crt_get_issuer_dn(crt, data, &size);
 	if (ret < 0)
 	{
-		gnutls_x509_crt_deinit(crt);
-		return ret;
+		goto err;
 	}
+	//gnutls_x509_crt_deinit(crt);
 	memcpy(out, data, size);
-	return size;
+	//return size;
+	ret = size;
+err:
+	gnutls_x509_crt_deinit(crt);
+	return ret;
 }
 
 gnutls_pcert_st *get_peer_certificate(gnutls_session_t sess, int *pcert_length)
@@ -452,6 +466,7 @@ int cert_check_hostname(gnutls_pcert_st *st, int len, char *hostname)
 		ret = gnutls_pcert_export_x509((st + i), &crt);
 		if (ret < 0)
 		{
+			gnutls_x509_crt_deinit(crt);
 			return ret;
 		}
 		ret = gnutls_x509_crt_check_hostname(crt, hostname);
