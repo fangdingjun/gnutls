@@ -374,11 +374,13 @@ func (c *Conn) getServerName() string {
 	return name
 }
 
+/*
 var bufPool = &sync.Pool{
 	New: func() interface{} {
 		return make([]byte, 16*1024)
 	},
 }
+*/
 
 // onDataReadCallback callback function for gnutls library want to read data from network
 //
@@ -387,15 +389,17 @@ func onDataReadCallback(d unsafe.Pointer, cbuf *C.char, bufLen C.int) C.int {
 	//log.Println("read addr ", uintptr(d))
 	conn := (*Conn)(unsafe.Pointer((uintptr(d))))
 
-	//buf := make([]byte, int(bufLen))
-	_length := int(bufLen)
-	buf := bufPool.Get().([]byte)
-	if len(buf) < _length {
-		buf = make([]byte, _length)
-	}
-	defer bufPool.Put(buf)
+	buf := make([]byte, int(bufLen))
+	/*
+		_length := int(bufLen)
+		buf := bufPool.Get().([]byte)
+		if len(buf) < _length {
+			buf = make([]byte, _length)
+		}
+		defer bufPool.Put(buf)
+	*/
 
-	n, err := conn.c.Read(buf[:_length])
+	n, err := conn.c.Read(buf[0:])
 	if err != nil {
 		//log.Println(err)
 		// 0 indicates connection termination
