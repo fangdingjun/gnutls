@@ -6,6 +6,8 @@ gnutls_datum_t out;
 int status;
 int type;
 
+static gnutls_certificate_credentials_t xcred;
+static gnutls_priority_t priority_cache;
 int _init_session(struct session *);
 int cert_select_callback(gnutls_session_t sess, const gnutls_datum_t *req_ca_dn,
 						 int nreqs, const gnutls_pk_algorithm_t *pk_algos,
@@ -36,13 +38,33 @@ struct session *init_gnutls_server_session()
 	return sess;
 }
 
+void init_priority_cache()
+{
+	if (priority_cache == NULL)
+	{
+		//printf("init priority cache\n");
+		gnutls_priority_init(&priority_cache, NULL, NULL);
+	}
+}
+
+void init_xcred()
+{
+	if (xcred == NULL)
+	{
+		//printf("init xcred\n");
+		gnutls_certificate_allocate_credentials(&xcred);
+		gnutls_certificate_set_x509_system_trust(xcred);
+		gnutls_certificate_set_retrieve_function2(xcred, cert_select_callback);
+	}
+}
+
 int _init_session(struct session *sess)
 {
-	gnutls_certificate_allocate_credentials(&sess->xcred);
-	gnutls_certificate_set_x509_system_trust(sess->xcred);
-	gnutls_certificate_set_retrieve_function2(sess->xcred, cert_select_callback);
-	gnutls_set_default_priority(sess->session);
-	gnutls_credentials_set(sess->session, GNUTLS_CRD_CERTIFICATE, sess->xcred);
+	//init_xcred();
+	//init_priority_cache();
+	//gnutls_set_default_priority(sess->session);
+	gnutls_priority_set(sess->session, priority_cache);
+	gnutls_credentials_set(sess->session, GNUTLS_CRD_CERTIFICATE, xcred);
 	return 0;
 }
 
@@ -50,7 +72,6 @@ void session_destroy(struct session *sess)
 {
 	gnutls_bye(sess->session, GNUTLS_SHUT_WR);
 	gnutls_deinit(sess->session);
-	gnutls_certificate_free_credentials(sess->xcred);
 	free(sess);
 }
 

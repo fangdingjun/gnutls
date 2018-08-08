@@ -107,11 +107,15 @@ func Listen(network, addr string, cfg *Config) (net.Listener, error) {
 
 // Server create a server TLS Conn on c
 func Server(c net.Conn, cfg *Config) (*Conn, error) {
+	if cfg == nil {
+		return nil, errors.New("config is needed")
+	}
+
 	var sess = C.init_gnutls_server_session()
+
 	conn := &Conn{c: c, sess: sess, cfg: cfg, lock: new(sync.Mutex)}
-	n := C.size_t(uintptr(unsafe.Pointer(conn)))
-	//log.Println("conn addr ", int(n))
-	C.set_data(sess, n)
+
+	C.set_data(sess, C.size_t(uintptr(unsafe.Pointer(conn))))
 	C.set_callback(sess)
 
 	if cfg.NextProtos != nil {
@@ -126,11 +130,12 @@ func Server(c net.Conn, cfg *Config) (*Conn, error) {
 // Client create a client TLS Conn on c
 func Client(c net.Conn, cfg *Config) (*Conn, error) {
 	var sess = C.init_gnutls_client_session()
+
 	conn := &Conn{c: c, sess: sess, cfg: cfg, lock: new(sync.Mutex)}
-	n := C.size_t(uintptr(unsafe.Pointer(conn)))
-	//log.Println("conn addr ", int(n))
-	C.set_data(sess, n)
+
+	C.set_data(sess, C.size_t(uintptr(unsafe.Pointer(conn))))
 	C.set_callback(sess)
+
 	if cfg != nil {
 		if cfg.ServerName != "" {
 			srvname := C.CString(cfg.ServerName)
@@ -479,4 +484,9 @@ func onCertSelectCallback(ptr unsafe.Pointer, hostname *C.char,
 	*pcertLength = 0
 	//log.Println("set pcert length 0")
 	return -1
+}
+
+func init() {
+	C.init_xcred()
+	C.init_priority_cache()
 }
